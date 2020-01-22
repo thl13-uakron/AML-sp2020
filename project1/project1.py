@@ -32,12 +32,21 @@ def manhattan_distance(item1, item2):
 
 # finding neighbors
 
+
 ## program parameters ##
 # file properties
 dataset_filename = ""
 separator = ','
 
-# classification properties
+# header fields
+attribute_names = []
+class_name = ""
+
+# possible settings
+k_vals = (1, 3, 5, 7)
+distance_methods = {"Euclidean" : euclidean_distance, 
+                    "Manhattan" : manhattan_distance}
+test_ratios = (0.1, 0.2, 0.25, 0.33, 0.5, 0.67)
 
 
 ## main program ##
