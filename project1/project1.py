@@ -3,6 +3,10 @@
 # Project 1 - kNN Classifier
 # Group: Thomas Li, 
 
+# This program contains the main code for this project, including 
+# that of loading the dataset, analyzing the statistical properties, 
+# and running and evaluating variations of kNN
+
 """
 Questions to answer (copied from project page)
 
@@ -145,6 +149,21 @@ x = dataset[attribute_names]
 y = dataset[class_name]
 
 # analyse dataset
+print("Dataset loaded from file {0}".format(dataset_filename))
+
+print("\nAttribute list: {0}".format(attribute_names))
+
+print("\nClass list: {0}".format([class_value_labels[c] for c in class_value_labels]))
+
+print("\n{0} total numeric attributes".format(len(attribute_names)))
+print("{0} total class labels".format(len(class_value_labels)))
+
+print("\nItems in dataset: {0}".format(len(dataset)))
+
+print("\nDistribution by class: ")
+for c in class_value_labels:
+    print("{0}: {1}".format(class_value_labels[c], len([v for v in dataset[class_name] if v == c])))
+
 
 # test kNN with various parameters
 # train-test splits
