@@ -35,9 +35,12 @@ import matplotlib
 from sklearn.model_selection import train_test_split
 # running kNN
 from sklearn.neighbors import KNeighborsClassifier
+# getting confusion matrix
+from sklearn.metrics import confusion_matrix
 
 
 ## methods and data structures ##
+"""
 # calculating distance 
 def euclidean_distance(item1, item2):
     return
@@ -45,12 +48,17 @@ def manhattan_distance(item1, item2):
     return
 
 # finding neighbors
+"""
+# calculating accuracy from confusion matrix
+def get_matrix_accuracy(matrix):
+    return (matrix[0, 0] + matrix[1, 1]) / float(np.sum(matrix))
 
 
 ## program parameters ##
 # file properties
 """
-# For Wisconsin Breast Cancer dataset: 
+# For Wisconsin Breast Cancer dataset:
+# (found at https://www.kaggle.com/uciml/breast-cancer-wisconsin-data)
 dataset_filename = "wi_breast_cancer.csv"
 separator = ','
 # header fields
@@ -90,7 +98,8 @@ class_value_labels = {"M":"Malignant", "B":"Benign"}
 """
 
 # """
-# For Credit Card Fraud Dataset
+# For Credit Card Fraud Dataset:
+# (found at https://www.kaggle.com/mlg-ulb/creditcardfraud)
 dataset_filename = "creditcard.csv"
 separator = ','
 # header fields
@@ -133,10 +142,14 @@ class_value_labels = {0:"Genuine", 1:"Fraudulent"}
 random_seed = 42
 
 # possible settings
-k_vals = tuple([i for i in range(0, 20) if i % 2 == 0])
+k_vals = tuple([i for i in range(0, 10) if i % 2 == 1])
+"""
 distance_methods = {"Euclidean" : euclidean_distance, 
                     "Manhattan" : manhattan_distance}
-test_ratios = (0.1, 0.2, 0.25, 0.33, 0.5, 0.67)
+"""
+# distance metric labels used in sklearn kNN
+distance_metrics = ["euclidean", "manhattan", "chebyshev"]
+test_ratios = (0.1, 0.2, 0.3, 0.4, 0.5)
 
 
 ## main program ##
@@ -147,6 +160,8 @@ dataset.head()
 
 x = dataset[attribute_names]
 y = dataset[class_name]
+
+class_members = {c:[val for val in dataset[class_name] if val == c] for c in class_value_labels}
 
 # analyse dataset
 print("Dataset loaded from file {0}".format(dataset_filename))
@@ -162,11 +177,57 @@ print("\nItems in dataset: {0}".format(len(dataset)))
 
 print("\nDistribution by class: ")
 for c in class_value_labels:
-    print("{0}: {1}".format(class_value_labels[c], len([v for v in dataset[class_name] if v == c])))
+    print("{0}: {1}".format(class_value_labels[c], len(class_members[c])))
 
 
-# test kNN with various parameters
-# train-test splits
+# kNN with various parameters
+# record results for each combination
+results = []
+# test different train-test splits
 for r in test_ratios:
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = r, random_state = random_seed)
+    # test different distance metrics
+    for m in distance_metrics:
+        # test different values of k
+        for k in k_vals:
+            # set up classifier
+            kNN = KNeighborsClassifier(n_neighbors=k, metric=m)
+            kNN.fit(x_train, y_train)
+            
+            # get confusion matrix
+            y_predicted = kNN.predict(x_test)
+            matrix = confusion_matrix(y_test, y_predicted)
+            
+            # display and record results
+            print("\nkNN with test ratio {0}, k = {1}, {2} distance metric".format(r, k, m))
+            results.append({"ratio": r, "k": k, "metric": m})
+            
+            # display score without balancing
+            print("Confusion Matrix (Imbalanced):")
+            print(matrix)
+            score = get_matrix_accuracy(matrix)
+            print("Score (Imbalanced): {0}".format(score))
+            results[-1]["score"] = score
+            results[-1]["matrix"] = matrix
+            
+            # balance confusion matrix classes and display again
+            print("Confusion Matrix (Balanced):")
+            ratio = np.sum(matrix[0]) / np.sum(matrix[1])
+            matrix[1, 0] *= ratio
+            matrix[1, 1] *= ratio
+            print(matrix)
+            score = get_matrix_accuracy(matrix)
+            print("Score (Balanced): {0}".format(score))
+            results[-1]["balanced score"] = score
+            results[-1]["balanced matrix"] = matrix
+            
     pass
+
+# visualize results
+cmap = matplotlib.cm.get_cmap('gnuplot')
+
+# analyse five best-performing variations
+results.sort(key=lambda x:x["score"])
+top_five = results[-5:]
+results.sort(key=lambda x:x["balanced score"])
+top_five_balanced = results[-5:]
