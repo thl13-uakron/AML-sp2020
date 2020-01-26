@@ -31,13 +31,15 @@ import pandas as pd
 import numpy as np
 # visualizations
 import matplotlib
+# preprocessing
+from sklearn.preprocessing import RobustScaler
 # running model evaluation
 from sklearn.model_selection import train_test_split
 # running kNN
 from sklearn.neighbors import KNeighborsClassifier
-# getting confusion matrix
+# getting confusion matrix and accuracy
 from sklearn.metrics import confusion_matrix
-
+from sklearn.metrics import accuracy_score
 
 ## methods and data structures ##
 """
@@ -49,10 +51,6 @@ def manhattan_distance(item1, item2):
 
 # finding neighbors
 """
-# calculating accuracy from confusion matrix
-def get_matrix_accuracy(matrix):
-    return (matrix[0, 0] + matrix[1, 1]) / float(np.sum(matrix))
-
 
 ## program parameters ##
 # file properties
@@ -103,7 +101,7 @@ class_value_labels = {"M":"Malignant", "B":"Benign"}
 dataset_filename = "creditcard.csv"
 separator = ','
 # header fields
-attribute_names = ['Time',
+attribute_names = [#'Time',
  'V1',
  'V2',
  'V3',
@@ -132,7 +130,8 @@ attribute_names = ['Time',
  'V26',
  'V27',
  'V28',
- 'Amount']
+ #'Amount'
+ ]
 class_name = "Class"
 
 class_value_labels = {0:"Genuine", 1:"Fraudulent"}
@@ -158,6 +157,13 @@ test_ratios = (0.1, 0.2, 0.3, 0.4, 0.5)
 dataset = pd.read_csv(dataset_filename, sep=separator)
 dataset.head()
 
+# scale attributes
+scaler = RobustScaler()
+"""
+dataset["Time"] = scaler.fit_transform(dataset["Time"].values.reshape(-1, 1))
+dataset["Amount"] = scaler.fit_transform(dataset["Amount"].values.reshape(-1, 1))
+"""
+
 x = dataset[attribute_names]
 y = dataset[class_name]
 
@@ -178,7 +184,8 @@ print("\nItems in dataset: {0}".format(len(dataset)))
 print("\nDistribution by class: ")
 for c in class_value_labels:
     print("{0}: {1}".format(class_value_labels[c], len(class_members[c])))
-
+        
+# display visualizations of dataset properties
 
 # kNN with various parameters
 # record results for each combination
@@ -197,29 +204,29 @@ for r in test_ratios:
             # get confusion matrix
             y_predicted = kNN.predict(x_test)
             matrix = confusion_matrix(y_test, y_predicted)
+            score = accuracy_score(matrix) 
+            
+            # balance confusion matrix to give classes equal weight
+            ratio = np.sum(matrix[0]) / np.sum(matrix[1])
+            balanced_matrix = confusion_matrix(y_test, y_predicted)
+            balanced_matrix[1, 0] *= ratio
+            balanced_matrix[1, 1] *= ratio
+            balanced_score = accuracy_score(balanced_matrix)
             
             # display and record results
             print("\nkNN with test ratio {0}, k = {1}, {2} distance metric".format(r, k, m))
-            results.append({"ratio": r, "k": k, "metric": m})
-            
-            # display score without balancing
-            print("Confusion Matrix (Imbalanced):")
+            print("\nConfusion Matrix (Imbalanced):")
             print(matrix)
-            score = get_matrix_accuracy(matrix)
             print("Score (Imbalanced): {0}".format(score))
-            results[-1]["score"] = score
-            results[-1]["matrix"] = matrix
+            print("\nConfusion Matrix (Balanced):")
+            print(balanced_matrix)
+            print("Score (Balanced): {0}\n".format(balanced_score))
             
-            # balance confusion matrix classes and display again
-            print("Confusion Matrix (Balanced):")
-            ratio = np.sum(matrix[0]) / np.sum(matrix[1])
-            matrix[1, 0] *= ratio
-            matrix[1, 1] *= ratio
-            print(matrix)
-            score = get_matrix_accuracy(matrix)
-            print("Score (Balanced): {0}".format(score))
-            results[-1]["balanced score"] = score
-            results[-1]["balanced matrix"] = matrix
+            
+            results.append({"ratio": r, "k": k, "metric": m, 
+                            "score": score, "matrix": matrix,
+                            "balanced score": balanced_score,
+                            "balanced matrix": balanced_matrix})
             
     pass
 
