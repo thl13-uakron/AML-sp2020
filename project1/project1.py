@@ -30,7 +30,8 @@ import pandas as pd
 # statistics
 import numpy as np
 # visualizations
-import matplotlib
+# import matplotlib
+import matplotlib.pyplot as plt
 # preprocessing
 from sklearn.preprocessing import RobustScaler
 # running model evaluation
@@ -101,6 +102,7 @@ class_value_labels = {"M":"Malignant", "B":"Benign"}
 dataset_filename = "creditcard.csv"
 separator = ','
 # header fields
+# comment attributes out to ignore them
 attribute_names = [#'Time',
  'V1',
  'V2',
@@ -157,9 +159,9 @@ test_ratios = (0.1, 0.2, 0.3, 0.4, 0.5)
 dataset = pd.read_csv(dataset_filename, sep=separator)
 dataset.head()
 
-# scale attributes
-scaler = RobustScaler()
+# scale attributes (not in use)
 """
+scaler = RobustScaler()
 dataset["Time"] = scaler.fit_transform(dataset["Time"].values.reshape(-1, 1))
 dataset["Amount"] = scaler.fit_transform(dataset["Amount"].values.reshape(-1, 1))
 """
@@ -167,7 +169,7 @@ dataset["Amount"] = scaler.fit_transform(dataset["Amount"].values.reshape(-1, 1)
 x = dataset[attribute_names]
 y = dataset[class_name]
 
-class_members = {c:[val for val in dataset[class_name] if val == c] for c in class_value_labels}
+class_members = {c:dataset.loc[dataset[class_name] == c] for c in class_value_labels}
 
 # analyse dataset
 print("Dataset loaded from file {0}".format(dataset_filename))
@@ -186,6 +188,34 @@ for c in class_value_labels:
     print("{0}: {1}".format(class_value_labels[c], len(class_members[c])))
         
 # display visualizations of dataset properties
+# """
+if input("\nShow visualizations for data distributions? (y/n) ") in ["Y", "y"]:
+    print("Generating ...")
+    
+    for i in range (0, len(attribute_names), 2):
+        # initialize plots, handle sizing and spacing
+        figure, axes = plt.subplots(nrows=1, ncols=2)
+        figure.tight_layout(pad=3.5)
+        
+        for j in range(0, 2):
+            # handle subplot indexing
+            i = i + j
+            if i == len(attribute_names):
+                break
+    
+            # create boxplot
+            subplot = axes[j]
+            subplot.set_title("{0} vs Class".format(attribute_names[i]))
+            subplot.set_ylabel("{0} Value".format(attribute_names[i]))
+            subplot.set_xlabel("Class")
+            subplot.boxplot([class_members[c][attribute_names[i]] for c in class_members], labels=[class_value_labels[c] for c in class_value_labels], whis=[5, 95], widths=0.5)
+    
+        # display plots
+        plt.show()
+
+# """
+    
+input("Press [ENTER] to continue ")
 
 # kNN with various parameters
 # record results for each combination
@@ -204,14 +234,14 @@ for r in test_ratios:
             # get confusion matrix
             y_predicted = kNN.predict(x_test)
             matrix = confusion_matrix(y_test, y_predicted)
-            score = accuracy_score(matrix) 
+            score = accuracy_score(y_test, y_predicted) 
             
             # balance confusion matrix to give classes equal weight
             ratio = np.sum(matrix[0]) / np.sum(matrix[1])
             balanced_matrix = confusion_matrix(y_test, y_predicted)
             balanced_matrix[1, 0] *= ratio
             balanced_matrix[1, 1] *= ratio
-            balanced_score = accuracy_score(balanced_matrix)
+            balanced_score = (balanced_matrix[0, 0] + balanced_matrix[1, 1]) / np.sum(balanced_matrix)
             
             # display and record results
             print("\nkNN with test ratio {0}, k = {1}, {2} distance metric".format(r, k, m))
@@ -231,7 +261,7 @@ for r in test_ratios:
     pass
 
 # visualize results
-cmap = matplotlib.cm.get_cmap('gnuplot')
+# cmap = matplotlib.cm.get_cmap('gnuplot')
 
 # analyse five best-performing variations
 results.sort(key=lambda x:x["score"])
