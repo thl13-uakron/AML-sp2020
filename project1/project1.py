@@ -33,7 +33,7 @@ import numpy as np
 # import matplotlib
 import matplotlib.pyplot as plt
 # preprocessing
-from sklearn.preprocessing import RobustScaler
+# from sklearn.preprocessing import RobustScaler
 # running model evaluation
 from sklearn.model_selection import train_test_split
 # running kNN
@@ -52,6 +52,7 @@ def manhattan_distance(item1, item2):
 
 # finding neighbors
 """
+# visualizing results
 
 ## program parameters ##
 # file properties
@@ -140,6 +141,7 @@ class_value_labels = {0:"Genuine", 1:"Fraudulent"}
 # """
 
 # seed for selecting testing dataset
+# and for undersampling dataset
 random_seed = 42
 
 # possible settings
@@ -166,9 +168,6 @@ dataset["Time"] = scaler.fit_transform(dataset["Time"].values.reshape(-1, 1))
 dataset["Amount"] = scaler.fit_transform(dataset["Amount"].values.reshape(-1, 1))
 """
 
-x = dataset[attribute_names]
-y = dataset[class_name]
-
 class_members = {c:dataset.loc[dataset[class_name] == c] for c in class_value_labels}
 
 # analyse dataset
@@ -187,35 +186,53 @@ print("\nDistribution by class: ")
 for c in class_value_labels:
     print("{0}: {1}".format(class_value_labels[c], len(class_members[c])))
         
+# give option to undersample dataset
+# """
+if input("Undersample dataset to balance classes? (y/n) ") in ["y", "Y"]:
+    class_size = min([len(class_members[c]) for c in class_members])
+    dataset = pd.DataFrame()
+    for c in class_members:
+        class_members[c] = class_members[c].sample(class_size, random_state=random_seed)
+        dataset = dataset.append(class_members[c])
+    print("Dataset undersampled to size {0}".format(len(dataset)))
+    pass
+# """
+    
+# split into input and target attributes
+x = dataset[attribute_names]
+y = dataset[class_name]
+
 # display visualizations of dataset properties
 # """
-if input("\nShow visualizations for data distributions? (y/n) ") in ["Y", "y"]:
-    print("Generating ...")
+# if input("\nShow visualizations for data distributions? (y/n) ") in ["Y", "y"]:
+# print("Generating ...")
     
-    for i in range (0, len(attribute_names), 2):
-        # initialize plots, handle sizing and spacing
-        figure, axes = plt.subplots(nrows=1, ncols=2)
-        figure.tight_layout(pad=3.5)
-        
-        for j in range(0, 2):
-            # handle subplot indexing
-            i = i + j
-            if i == len(attribute_names):
-                break
+input("Press ENTER to continue to Data Visualizations")
+
+for i in range (0, len(attribute_names), 2):
+    # initialize plots, handle sizing and spacing
+    figure, axes = plt.subplots(nrows=1, ncols=2)
+    figure.tight_layout(pad=3.5)
     
-            # create boxplot
-            subplot = axes[j]
-            subplot.set_title("{0} vs Class".format(attribute_names[i]))
-            subplot.set_ylabel("{0} Value".format(attribute_names[i]))
-            subplot.set_xlabel("Class")
-            subplot.boxplot([class_members[c][attribute_names[i]] for c in class_members], labels=[class_value_labels[c] for c in class_value_labels], whis=[5, 95], widths=0.5)
-    
-        # display plots
-        plt.show()
+    for j in range(0, 2):
+        # handle subplot indexing
+        i = i + j
+        if i == len(attribute_names):
+            break
+
+        # create boxplot
+        subplot = axes[j]
+        subplot.set_title("{0} vs Class".format(attribute_names[i]))
+        subplot.set_ylabel("{0} Value".format(attribute_names[i]))
+        subplot.set_xlabel("Class")
+        subplot.boxplot([class_members[c][attribute_names[i]] for c in class_members], labels=[class_value_labels[c] for c in class_value_labels], whis=[5, 95], widths=0.5)
+
+    # display plots
+    plt.show()
 
 # """
     
-input("Press [ENTER] to continue ")
+input("\nPress [ENTER] to continue to Evaluation")
 
 # kNN with various parameters
 # record results for each combination
@@ -236,21 +253,18 @@ for r in test_ratios:
             matrix = confusion_matrix(y_test, y_predicted)
             score = accuracy_score(y_test, y_predicted) 
             
-            # balance confusion matrix to give classes equal weight
-            ratio = np.sum(matrix[0]) / np.sum(matrix[1])
-            balanced_matrix = confusion_matrix(y_test, y_predicted)
-            balanced_matrix[1, 0] *= ratio
-            balanced_matrix[1, 1] *= ratio
+            # normalize confusion matrix to give classes equal weight
+            balanced_matrix = confusion_matrix(y_test, y_predicted, normalize='true')
             balanced_score = (balanced_matrix[0, 0] + balanced_matrix[1, 1]) / np.sum(balanced_matrix)
             
             # display and record results
             print("\nkNN with test ratio {0}, k = {1}, {2} distance metric".format(r, k, m))
-            print("\nConfusion Matrix (Imbalanced):")
+            print("\nConfusion Matrix (Unnormalized):")
             print(matrix)
-            print("Score (Imbalanced): {0}".format(score))
-            print("\nConfusion Matrix (Balanced):")
+            print("Score (Unnormalized): {0}".format(score))
+            print("\nConfusion Matrix (Normalized):")
             print(balanced_matrix)
-            print("Score (Balanced): {0}\n".format(balanced_score))
+            print("Score (Normalized): {0}\n".format(balanced_score))
             
             
             results.append({"ratio": r, "k": k, "metric": m, 
@@ -260,11 +274,88 @@ for r in test_ratios:
             
     pass
 
-# visualize results
-# cmap = matplotlib.cm.get_cmap('gnuplot')
-
 # analyse five best-performing variations
+# this is a blatant violation of "Don't Repeat Yourself" won't work for other datasets but I didn't feel like figuring out how to generalize this
+# """
+input("Press ENTER to continue to Analysis")
+
 results.sort(key=lambda x:x["score"])
-top_five = results[-5:]
+print("\n\nTop Five Variations (Unweighted Accuracy)")
+for result in results[-5:]:
+    print("\nTest ratio {0}, k = {1}, {2} distance metric".format(result["ratio"], result["k"], result["metric"]))
+    print("Score: {0}".format(result["score"]))
+    print("{0}% of genuine transactions predicted".format(100 * result["matrix"][0][0] / (result["matrix"][0][0] + result["matrix"][0][1])))
+    print("{0}% of fraudulent transactions predicted".format(100 * result["matrix"][1][1] / (result["matrix"][1][0] + result["matrix"][1][1])))
+    
+    
+print("\n\nFive Lowest-Scoring Variations (Unweighted Accuracy)")
+for result in results[:5]:
+    print("\nTest ratio {0}, k = {1}, {2} distance metric".format(result["ratio"], result["k"], result["metric"]))
+    print("Score: {0}".format(result["score"]))
+    print("{0}% of genuine transactions predicted".format(100 * result["matrix"][0][0] / (result["matrix"][0][0] + result["matrix"][0][1])))
+    print("{0}% of fraudulent transactions predicted".format(100 * result["matrix"][1][1] / (result["matrix"][1][0] + result["matrix"][1][1])))
+    
+# """
+
 results.sort(key=lambda x:x["balanced score"])
-top_five_balanced = results[-5:]
+print("\n\nTop Five Variations (Weighted Accuracy)")
+for result in results[-5:]:
+    print("\nTest ratio {0}, k = {1}, {2} distance metric".format(result["ratio"], result["k"], result["metric"]))
+    print("Score: {0}".format(result["balanced score"]))
+    print("{0}% of genuine transactions predicted".format(100 * result["balanced matrix"][0][0] / (result["balanced matrix"][0][0] + result["balanced matrix"][0][1])))
+    print("{0}% of fraudulent transactions predicted".format(100 * result["balanced matrix"][1][1] / (result["balanced matrix"][1][0] + result["balanced matrix"][1][1])))
+    
+print("\n\nFive Lowest-Scoring Variations (Weighted Accuracy)")
+for result in results[:5]:
+    print("\nTest ratio {0}, k = {1}, {2} distance metric".format(result["ratio"], result["k"], result["metric"]))
+    print("Score: {0}".format(result["balanced score"]))
+    print("{0}% of genuine transactions predicted".format(100 * result["balanced matrix"][0][0] / (result["balanced matrix"][0][0] + result["balanced matrix"][0][1])))
+    print("{0}% of fraudulent transactions predicted".format(100 * result["balanced matrix"][1][1] / (result["balanced matrix"][1][0] + result["balanced matrix"][1][1])))
+    
+# """
+    
+# visualize results
+
+# k-value and distance metric vs performance
+# initialize plot
+figure, axes = plt.subplots(ncols=2)
+figure.tight_layout(pad=3.5)
+subplot = axes[0]
+subplot.set_title("k-value vs Performance")
+subplot.set_ylabel("Weighted Accuracy")
+subplot.set_xlabel("k")
+subplot.set_xticks(k_vals)
+for metric in distance_metrics:
+    subplot.scatter([r["k"] for r in results if r["metric"] == metric], [r["balanced score"] for r in results if r["metric"] == metric], label=metric, alpha=0.6)
+subplot.legend()
+
+
+# test ratio and distance metric vs performance
+# initialize plot
+subplot = axes[1]
+subplot.set_title("Test Ratio vs Performance")
+subplot.set_ylabel("Weighted Accuracy")
+subplot.set_xlabel("Test Ratio")
+subplot.set_xticks(test_ratios)
+for metric in distance_metrics:
+    subplot.scatter([r["ratio"] for r in results if r["metric"] == metric], [r["balanced score"] for r in results if r["metric"] == metric], label=metric, alpha=0.6)
+subplot.legend()
+
+plt.show()
+
+# test ratio, k-value, and distance metric vs performance (3d plot)
+from mpl_toolkits.mplot3d import axes3d
+# initialize plot
+figure = plt.figure()
+subplot = figure.add_subplot(111, projection='3d')
+subplot.set_title("Test Ratio and k-value vs Performance")
+subplot.set_zlabel("Weighted Accuracy")
+subplot.set_ylabel("Test Ratio")
+subplot.set_yticks(test_ratios)
+subplot.set_xlabel("k")
+subplot.set_xticks(k_vals)
+for metric in distance_metrics:
+    subplot.scatter([r["k"] for r in results if r["metric"] == metric], [r["ratio"] for r in results if r["metric"] == metric], [r["balanced score"] for r in results if r["metric"] == metric], label=metric, alpha=0.6)
+subplot.legend()
+plt.show()
+
